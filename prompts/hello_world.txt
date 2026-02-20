@@ -1,0 +1,5 @@
+# Codex prompt: Hello World starter
+Generate a single Python file that:
+- prints "Hello from Life Studio AI" when executed
+- is called via `python generated/hello_world.py`
+- includes a module-level docstring and a main() function
