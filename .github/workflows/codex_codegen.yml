@@ -1,42 +1,33 @@
-name: Codex codegen
+name: CI
+
 on:
-  workflow_dispatch:
-    inputs:
-      prompt_file:
-        description: "Prompt file path"
-        default: prompts/hello_world.txt
-      model:
-        description: "OpenAI model name"
-        default: gpt-5.2
-      output_path:
-        description: "Output file path"
-        default: generated/hello_world.py
+  pull_request:
+    branches: [dev, main]
+
 jobs:
-  run:
+  node:
+    if: hashFiles('package.json') != ''
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - run: npm test
+      - run: npm run lint
+
+  python:
+    if: hashFiles('pyproject.toml') != '' || hashFiles('requirements.txt') != ''
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.x"
-      - run: pip install --upgrade openai
-      - name: Run Codex codegen script
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          CODEX_PROMPT_FILE: ${{ github.event.inputs.prompt_file }}
-          CODEX_OUTPUT_FILE: ${{ github.event.inputs.output_path }}
-          CODEX_MODEL: ${{ github.event.inputs.model }}
-        run: python scripts/codex_codegen.py
-      - name: Commit generated code
-        run: |
-          if git status --porcelain | grep .; then
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add .
-            git commit -m "chore: codex codegen output [skip codex]"
-            git push origin HEAD:${GITHUB_REF#refs/heads/}
-          else
-            echo "No changes to commit."
-          fi
+          python-version: '3.11'
+      - run: pip install -r requirements.txt
+        if: hashFiles('requirements.txt') != ''
+      - run: pip install -e .
+        if: hashFiles('pyproject.toml') != ''
+      - run: pytest
+      - run: flake8 .
